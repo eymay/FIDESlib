@@ -143,7 +143,8 @@ CODECOV_TOKEN=<upload token> ./scripts/run_coverage.sh
 
 Additional environment variables (all optional): `FIDESLIB_ARCH` (pin CUDA architectures, e.g. `89-real`
 or `auto`; unset = portable list that runs on any GPU), `OPENFHE_INSTALL_PREFIX` (non-default OpenFHE
-install), `BUILD_DIR` (default `build-coverage`), `REPORT_DIR` (default `coverage`), `JOBS`.
+install), `BUILD_DIR` (default `build-coverage`), `REPORT_DIR` (default `coverage`), `JOBS`,
+`TEST_FILTER` (gtest filter, e.g. `NTTTests/NTTTest.*` or `:AccumulateBroadcast.*`; empty = the whole suite).
 
 Coverage is collected with gcov (`--coverage`, enabled through the `FIDESLIB_ENABLE_COVERAGE` CMake
 option) and reported with gcovr. Only `src/` and `api/` are measured; tests, benchmarks and

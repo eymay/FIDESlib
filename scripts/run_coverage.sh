@@ -11,6 +11,7 @@
 #   COVERAGE_MIN_LINE=60 ./scripts/run_coverage.sh                     # fail if line coverage < 60%
 #   CODECOV_TOKEN=xxxx ./scripts/run_coverage.sh                       # also upload to Codecov
 #   BUILD_DIR=build-coverage-openfhe ./scripts/run_coverage.sh         # custom build directory
+#   TEST_FILTER='NTTTests.*:MathTests.*' ./scripts/run_coverage.sh     # run a subset of tests
 #
 # Requirements:
 #   - A working CUDA environment (tests need a GPU).
@@ -32,6 +33,8 @@ REPORT_DIR="${REPORT_DIR:-coverage}"
 GCOVR_CONFIG="scripts/coverage.gcovr.cfg"
 COVERAGE_MIN_LINE="${COVERAGE_MIN_LINE:-0}"
 JOBS="${JOBS:-$(nproc)}"
+# Optional gtest filter; empty = run the whole suite.
+TEST_FILTER="${TEST_FILTER:-}"
 
 # Honor a non-default OpenFHE install if requested.
 OPENFHE_FLAGS=()
@@ -61,7 +64,12 @@ find "${BUILD_DIR}" -name '*.gcda' -delete
 
 echo "==> Running the test suite"
 set +e
-"${BUILD_DIR}/fideslib-test"
+if [[ -n "${TEST_FILTER}" ]]; then
+    echo "    (filter: ${TEST_FILTER})"
+    "${BUILD_DIR}/fideslib-test" --gtest_filter="${TEST_FILTER}"
+else
+    "${BUILD_DIR}/fideslib-test"
+fi
 TESTS_RC=$?
 set -e
 
