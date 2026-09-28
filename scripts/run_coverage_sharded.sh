@@ -79,7 +79,7 @@ for line in out.splitlines():
         # name is single-dot joined.
         suite = line.rstrip().rstrip('.')
 skip = ('P2PBenchmark.', 'APIbench.', 'LLMTests/', 'Microbench.', 'BtsTiming')
-names = [n for n in names if not n.startswith(skip)]
+names = [n for n in names if not n.startswith(skip) and 'DISABLED' not in n]
 flt = sys.argv[2]
 if flt:
     # Translate an approximate TEST_FILTER into exact full names: keep the
