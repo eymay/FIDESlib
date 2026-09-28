@@ -14,7 +14,8 @@
 #     single gcovr pass at the end yields full-suite metrics.
 #   - Progress is tracked in a done-file, so the run is resumable: relaunching
 #     the script after it was killed continues from where it left off.
-#   - Per-case RSS is sampled into <REPORT_DIR>/.stats/ for memory forensics.
+#   - NOTE: tests run as foreground children (no background subprocesses); this
+#     sandbox terminates shells that spawn background children mid-flight.
 #
 # Usage:
 #   ./scripts/run_coverage_sharded.sh                                     # full suite (minus benchmarks)
@@ -113,19 +114,12 @@ while IFS= read -r name; do
     if grep -qxF "${name}" "${DONE_FILE}" 2>/dev/null; then continue; fi
     safe="$(printf '%s' "${name}" | tr '/.' '__')"
     LOG="${CASE_LOG_DIR}/${safe}.log"
-    RSS="${CASE_LOG_DIR}/${safe}.rss.csv"
 
     echo "RUN $(date +%s) ${name}" >> "${STATS_DIR}/timeline.csv"
-    "${BIN}" --gtest_filter="${name}" > "${LOG}" 2>&1 &
-    TPID=$!
-    ( while kill -0 "${TPID}" 2>/dev/null; do
-        rss="$(awk '/VmRSS/{print $2}' "/proc/${TPID}/status" 2>/dev/null || echo 0)"
-        echo "$(date +%s%3N) ${rss}" >> "${RSS}"
-        sleep 2
-      done ) &
-    RPID=$!
-    set +e; wait "${TPID}"; RC=$?; set -e
-    kill "${RPID}" 2>/dev/null; wait "${RPID}" 2>/dev/null
+    set +e
+    "${BIN}" --gtest_filter="${name}" > "${LOG}" 2>&1
+    RC=$?
+    set -e
     echo "END $(date +%s) rc=${RC} ${name}" >> "${STATS_DIR}/timeline.csv"
 
     if grep -q "0 tests from 0 test suites" "${LOG}"; then
