@@ -119,7 +119,8 @@ Check examples for projects that use FIDESlib.
 ## Coverage
 
 The repository ships a local coverage pipeline (`scripts/run_coverage.sh`) that measures how much of the
-library is executed while the test suite runs.
+library is executed while the test suite runs. Current figures and what they do/do not include are
+tracked in [COVERAGE.md](COVERAGE.md).
 
 Requirements:
 
@@ -132,6 +133,18 @@ HTML + Cobertura reports under `coverage/`):
 
 ```bash
 ./scripts/run_coverage.sh
+```
+
+The suite is large; a single long process may exceed per-job memory/time limits
+(and one crashing test aborts the whole measurement). An alternative sharded
+driver, `scripts/run_coverage_sharded.sh`, launches **each test case in its own
+process**, accumulates gcov counters across all of them, is crash-isolated and
+resumable, and records per-case RSS under `coverage/.stats/`:
+
+```bash
+./scripts/run_coverage_sharded.sh
+# limit or resume with a subset:
+TEST_FILTER='OpenFHEInterfaceTests*:OpenFHEBootstrapTests*' ./scripts/run_coverage_sharded.sh
 ```
 
 To fail the run when line coverage is below a target, or to upload the report to Codecov:
