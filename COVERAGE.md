@@ -36,10 +36,10 @@ BUILD_DIR=build-coverage ./scripts/run_coverage_sharded.sh
 | src/CKKS/openfhe-interface | 633 | 568 | 89.7 % | 92.9 % |
 | **TOTAL** | **11993** | **6242** | **52.0 %** | 39.7 % (581/1463) |
 
-Branches: **24.4 %** (6442 of 26397 branch points). All 439 runnable test cases
-were executed (128 core + 42 interface + 44 compat + 72 bootstrap, + 153 more
-via the interface suite's remaining cases and compat), with 0 failures; the
-multi-GPU tests skip (single GPU).
+Branches: **24.4 %** (6442 of 26397 branch points). The full believable suite was
+run: 131 core + 192 interface + 44 compat + 72 bootstrap = 439 runnable cases,
+0 failures (3 multi-GPU tests skip on this single-GPU machine and 2 `DISABLED_`
+cases are excluded).
 
 ## Notes on the numbers
 
