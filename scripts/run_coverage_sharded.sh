@@ -19,6 +19,7 @@
 # Usage:
 #   ./scripts/run_coverage_sharded.sh                                     # full suite (minus benchmarks)
 #   TEST_FILTER='OpenFHEInterfaceTests*:OpenFHECompatTests*' ./scripts/run_coverage_sharded.sh
+#   CASE_FILE=/tmp/batch.txt ./scripts/run_coverage_sharded.sh            # run exactly the listed cases
 #   BUILD_DIR=build-coverage-openfhe ./scripts/run_coverage_sharded.sh    # custom build dir
 #
 # Notes:
@@ -39,6 +40,8 @@ BIN="${BUILD_DIR}/fideslib-test"
 STATS_DIR="${REPORT_DIR}/.stats"
 DONE_FILE="${STATS_DIR}/done.log"
 CASES_FILE="${STATS_DIR}/cases.txt"
+CASE_FILE="${CASE_FILE:-}"
+FULL_RESTART="${FULL_RESTART:-0}"
 CASE_LOG_DIR="${STATS_DIR}/cases"
 SUMMARY_FILE="${STATS_DIR}/sharded-summary.log"
 TEST_FILTER="${TEST_FILTER:-}"
@@ -53,11 +56,14 @@ mkdir -p "${STATS_DIR}" "${CASE_LOG_DIR}"
 : > "${SUMMARY_FILE}"
 trap 'echo "trap $(date -u +%FT%T)" >> "${SUMMARY_FILE}"' TERM HUP INT
 
-echo "=== sharded run start $(date -u +%FT%T) ===" | tee -a "${SUMMARY_FILE}"
-echo "    build: ${BIN}  filter: ${TEST_FILTER:-<all unit tests>}" | tee -a "${SUMMARY_FILE}"
-
-# Enumerate test cases (exclude benchmark/timing suites), preserving order.
-python3 - "$CASES_FILE" "$TEST_FILTER" <<'PY'
+# Case list: an explicit CASE_FILE wins; otherwise enumerate (excluding
+# benchmark/timing suites) and optionally narrow with TEST_FILTER tokens.
+if [[ -n "${CASE_FILE}" ]]; then
+    cp "${CASE_FILE}" "${CASES_FILE}"
+    echo "using CASE_FILE: ${CASE_FILE} ($(wc -l < "${CASES_FILE}") cases)" | tee -a "${SUMMARY_FILE}"
+else
+    echo "    filter: ${TEST_FILTER:-<all unit tests>}" | tee -a "${SUMMARY_FILE}"
+    python3 - "$CASES_FILE" "$TEST_FILTER" <<'PY'
 import os, re, subprocess, sys
 out = subprocess.run(['build-coverage/fideslib-test', '--gtest_list_tests'],
                      capture_output=True, text=True).stdout
@@ -83,6 +89,7 @@ with open(sys.argv[1], 'w') as f:
     f.write('\n'.join(names) + '\n')
 print(f"enumerated {len(names)} cases")
 PY
+fi
 
 # Sanity: the full case list must be matched 1:1 by gtest, or the filters are wrong.
 ALL_CASES="$(paste -sd: "${CASES_FILE}")"
@@ -94,7 +101,11 @@ if [[ "${NMATCH}" -ne "${NCASES}" ]]; then
     exit 96
 fi
 
-: > "${DONE_FILE}"   # fresh run: nothing done. Remove this line to resume a previous run.
+# Fresh runs start from an empty done-file; a re-run (e.g. after the job was
+# killed) resumes by skipping the cases already in the done-file.
+if [[ "${FULL_RESTART}" == "1" || ! -f "${DONE_FILE}" ]]; then
+    : > "${DONE_FILE}"
+fi
 
 PASSED=0; FAILED=0; SKIPPED=0; CRASHED=0
 while IFS= read -r name; do
