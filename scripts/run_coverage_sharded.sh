@@ -145,4 +145,12 @@ gcovr --root "${PROJECT_ROOT}" \
     --cobertura "${REPORT_DIR}/coverage.xml" \
     --print-summary >> "${SUMMARY_FILE}" 2>&1
 echo "gcovr rc=$? at $(date -u +%FT%T)" | tee -a "${SUMMARY_FILE}"
+
+# Static kernel-usage report (complements the host-only gcov numbers).
+if command -v python3 >/dev/null 2>&1; then
+    echo "=== kernel-usage report $(date -u +%FT%T) ===" | tee -a "${SUMMARY_FILE}"
+    python3 scripts/kernel_usage.py --root "${PROJECT_ROOT}" \
+        --coverage-xml "${REPORT_DIR}/coverage.xml" \
+        --output "${KERNEL_REPORT:-KERNEL_USAGE.md}" | tee -a "${SUMMARY_FILE}" 2>&1
+fi
 echo "=== sharded run end $(date -u +%FT%T) ===" | tee -a "${SUMMARY_FILE}"
