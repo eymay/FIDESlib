@@ -5,7 +5,14 @@ cmake_policy(VERSION 3.21.3...3.30)
 
 # Set target architectures.
 if (NOT DEFINED FIDESLIB_ARCH)
-    set(FIDESLIB_ARCH "80-real;86-real;89-real;90-real;90-virtual;100-real;120-real" CACHE STRING "Set the backend architecture target.")
+    # Pre-Ampere GPUs (e.g. Pascal) are not in the default list; build for the local GPU instead.
+    execute_process(COMMAND nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+            OUTPUT_VARIABLE LOCAL_GPU_CAPS ERROR_QUIET)
+    if (LOCAL_GPU_CAPS MATCHES "(^|\n)[1-7]\\.")
+        set(FIDESLIB_ARCH "native" CACHE STRING "Set the backend architecture target.")
+    else ()
+        set(FIDESLIB_ARCH "80-real;86-real;89-real;90-real;90-virtual;100-real;120-real" CACHE STRING "Set the backend architecture target.")
+    endif ()
 endif ()
 
 # Set build type.
