@@ -2968,6 +2968,9 @@ TEST_P(OpenFHEBootstrapTest, LinearTransform) {
 			GPUct1.store(raw_res1);
 			auto cResGPU = c2->Clone();
 			GetOpenFHECipherText(cResGPU, raw_res1);
+			// The GPU LT tags its output with the plaintexts' slot count (2 * slots, as Bootstrap expects);
+			// OpenFHE's EvalLinearTransform keeps the input's. Decode both the same way.
+			cResGPU->SetSlots(ctxtEnc->GetSlots());
 
 			{
 				auto evalKeyMap = cc->GetEvalAutomorphismKeyMap(cResGPU->GetKeyTag());
