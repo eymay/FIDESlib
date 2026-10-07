@@ -7,7 +7,9 @@
 #include "Rotation.cuh"
 
 #include <cooperative_groups.h>
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 700
 #include <cuda/barrier>
+#endif
 namespace cg = cooperative_groups;
 
 namespace FIDESlib ::CKKS {

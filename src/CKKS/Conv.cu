@@ -6,7 +6,27 @@
 #include "ModMult.cuh"
 
 #include <cooperative_groups.h>
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+// Pre-Volta fallback: libcu++ pipelines need sm_70+. Each thread waits only on its own
+// copies, so a synchronous copy with no-op pipeline stages is equivalent.
+namespace fides_pipe_compat {
+struct pipeline {
+	__device__ void producer_acquire() {}
+	__device__ void producer_commit() {}
+	__device__ void consumer_wait() {}
+	__device__ void consumer_release() {}
+};
+__device__ inline pipeline make_pipeline() { return {}; }
+template <typename T>
+__device__ inline void memcpy_async(T* dst, const T* src, size_t size, pipeline&) {
+	memcpy(dst, src, size);
+}
+} // namespace fides_pipe_compat
+#define FIDES_PIPE_NS fides_pipe_compat
+#else
 #include <cuda/pipeline>
+#define FIDES_PIPE_NS cuda
+#endif
 #include <cuda_runtime.h>
 
 namespace FIDESlib::CKKS {
@@ -141,7 +161,7 @@ ModDown3(void** __restrict__ a, const __grid_constant__ int n, void** __restrict
 	uint64_t* buff = ((uint64_t*)shared_mem);
 	// constexpr int BLOCK_THREADS = 128;
 
-	auto pipe = cuda::make_pipeline();
+	auto pipe = FIDES_PIPE_NS::make_pipeline();
 
 	// assert(BLOCK_THREADS == blockDim.x * blockDim.y);
 	assert(blockDim.y == 2);
@@ -161,7 +181,7 @@ ModDown3(void** __restrict__ a, const __grid_constant__ int n, void** __restrict
 				if (ISU64(primeid)) {
 					assert(b[pos] != nullptr);
 					void* __restrict__ peer_ptr = b[pos];
-					cuda::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * pos) + tid,
+					FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * pos) + tid,
 					  reinterpret_cast<ulonglong2*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 					  sizeof(ulonglong2),
 					  pipe);
@@ -184,7 +204,7 @@ ModDown3(void** __restrict__ a, const __grid_constant__ int n, void** __restrict
 						assert(b[pos + STAGES] != nullptr);
 						void* __restrict__ peer_ptr = b[pos + STAGES];
 
-						cuda::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
+						FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
 						  reinterpret_cast<ulonglong2*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 						  sizeof(ulonglong2),
 						  pipe);
@@ -549,7 +569,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 	uint64_t* buff				= ((uint64_t*)shared_mem);
 	constexpr int BLOCK_THREADS = 128;
 
-	auto pipe = cuda::make_pipeline();
+	auto pipe = FIDES_PIPE_NS::make_pipeline();
 
 	assert(BLOCK_THREADS == blockDim.x * blockDim.y);
 	assert(blockDim.y == 2);
@@ -570,7 +590,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 				if (ISU64(primeid)) {
 					assert(a[pos] != nullptr);
 					void* __restrict__ peer_ptr = a[pos];
-					cuda::memcpy_async(reinterpret_cast<uint64_t*>(buff) + (blockDim.x * pos) + tid,
+					FIDES_PIPE_NS::memcpy_async(reinterpret_cast<uint64_t*>(buff) + (blockDim.x * pos) + tid,
 					  reinterpret_cast<uint64_t*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 					  sizeof(uint64_t),
 					  pipe);
@@ -592,7 +612,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 						assert(a[pos + STAGES] != nullptr);
 						void* __restrict__ peer_ptr = a[pos + STAGES];
 
-						cuda::memcpy_async(reinterpret_cast<uint64_t*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
+						FIDES_PIPE_NS::memcpy_async(reinterpret_cast<uint64_t*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
 						  reinterpret_cast<uint64_t*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 						  sizeof(uint64_t),
 						  pipe);
@@ -671,7 +691,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 	uint64_t* buff = ((uint64_t*)shared_mem);
 	// constexpr int BLOCK_THREADS = 128;
 
-	auto pipe = cuda::make_pipeline();
+	auto pipe = FIDES_PIPE_NS::make_pipeline();
 
 	// assert(BLOCK_THREADS == blockDim.x * blockDim.y);
 	assert(blockDim.y == 2);
@@ -692,7 +712,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 				if (ISU64(primeid)) {
 					assert(a[pos] != nullptr);
 					void* __restrict__ peer_ptr = a[pos];
-					cuda::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * pos) + tid,
+					FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * pos) + tid,
 					  reinterpret_cast<ulonglong2*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 					  sizeof(ulonglong2),
 					  pipe);
@@ -714,7 +734,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 						assert(a[pos + STAGES] != nullptr);
 						void* __restrict__ peer_ptr = a[pos + STAGES];
 
-						cuda::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
+						FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong2*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
 						  reinterpret_cast<ulonglong2*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 						  sizeof(ulonglong2),
 						  pipe);
@@ -804,7 +824,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 	uint64_t* buff				= ((uint64_t*)shared_mem);
 	constexpr int BLOCK_THREADS = 128;
 
-	auto pipe = cuda::make_pipeline();
+	auto pipe = FIDES_PIPE_NS::make_pipeline();
 
 	assert(BLOCK_THREADS == blockDim.x * blockDim.y);
 	assert(blockDim.y == 2);
@@ -825,7 +845,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 				if (ISU64(primeid)) {
 					assert(a[pos] != nullptr);
 					void* __restrict__ peer_ptr = a[pos];
-					cuda::memcpy_async(reinterpret_cast<ulonglong4*>(buff) + (blockDim.x * pos) + tid,
+					FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong4*>(buff) + (blockDim.x * pos) + tid,
 					  reinterpret_cast<ulonglong4*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 					  sizeof(ulonglong4),
 					  pipe);
@@ -847,7 +867,7 @@ DecompAndModUpConv_spec2(void** __restrict__ a, const int __grid_constant__ n, v
 						assert(a[pos + STAGES] != nullptr);
 						void* __restrict__ peer_ptr = a[pos + STAGES];
 
-						cuda::memcpy_async(reinterpret_cast<ulonglong4*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
+						FIDES_PIPE_NS::memcpy_async(reinterpret_cast<ulonglong4*>(buff) + (blockDim.x * (pos + STAGES)) + tid,
 						  reinterpret_cast<ulonglong4*>(peer_ptr) + (blockIdx.x * blockDim.x) + tid,
 						  sizeof(ulonglong4),
 						  pipe);
