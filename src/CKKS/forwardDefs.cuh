@@ -8,6 +8,12 @@
 #include <concepts>
 #include <memory>
 
+// __grid_constant__ is an sm_70+ optimization hint; drop it when compiling for older GPUs.
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 700
+#undef __grid_constant__
+#define __grid_constant__
+#endif
+
 namespace FIDESlib::CKKS {
 // class Context;
 using KeyHash = std::string;
