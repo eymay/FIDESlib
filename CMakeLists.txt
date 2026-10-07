@@ -365,6 +365,9 @@ if (FIDESLIB_COMPILE_TESTS)
     set(TEST_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
     file(GLOB_RECURSE TEST_SOURCE ${TEST_SOURCE_DIR}/*.cpp ${TEST_SOURCE_DIR}/*.cu)
+    if (NOT nccl_FOUND)
+        list(REMOVE_ITEM TEST_SOURCE ${TEST_SOURCE_DIR}/Microbench.cu ${TEST_SOURCE_DIR}/PeerUtilsTests.cu)
+    endif ()
     set_source_files_properties(${TEST_SOURCE} PROPERTIES LANGUAGE CUDA)
 
     add_executable(fideslib-test)
